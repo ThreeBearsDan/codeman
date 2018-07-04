@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync/atomic"
 
 	"sync"
 
@@ -12,7 +13,7 @@ import (
 
 var mgr *session.Manager
 var once sync.Once
-var count int
+var count int64
 
 func init() {
 	// Here save session id in cookie, certainly you can also save it in URL query or request header anyway.
@@ -47,8 +48,9 @@ var handle = func(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
-	count = store.Get("count").(int)
-	count++
+	count = store.Get("count").(int64)
+	// Guarantee parallel safe.
+	atomic.AddInt64(&count, 1)
 	// Record in session every times.
 	if err := store.Set("count", count); err != nil {
 		http.Error(w, "failed", http.StatusInternalServerError)
